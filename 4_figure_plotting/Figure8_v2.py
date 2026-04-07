@@ -196,35 +196,53 @@ def main():
 
     # ===================================================================
     # Panel (c): Treatment effect — Successional (difference from Control)
+    #            Measured (solid) + Estimated (hatched) side by side
     # ===================================================================
     ax_c = fig.add_subplot(gs[1, 0])
 
     effect_treats = ["AltP", "Warmed", "AltP+Warmed"]
     effect_labels = ["AltP", "Warmed", "AltP+Warmed"]
     x_eff = np.arange(len(effect_treats))
-    width_e = 0.2
+    width_e = 0.12
 
-    for s_i, (tcol, label, color) in enumerate(
-            zip(succ_targets, succ_labels_short, succ_colors)):
-        diffs, diff_stds = [], []
-        block_diffs = []
+    for s_i, (tcol, pcol, label, color) in enumerate(
+            zip(succ_targets, succ_preds, succ_labels_short, succ_colors)):
+        m_diffs, m_stds, m_blocks = [], [], []
+        e_diffs, e_stds, e_blocks = [], [], []
         for tr in effect_treats:
-            ctrl = succ_meas[succ_meas["Treatment"] == "Control"].set_index("plot")[tcol]
-            treat_vals = succ_meas[succ_meas["Treatment"] == tr].set_index("plot")[tcol]
-            diff = (treat_vals - ctrl) * 100
-            diffs.append(diff.mean())
-            diff_stds.append(diff.std())
-            block_diffs.append(diff.values)
+            ctrl_m = succ_meas[succ_meas["Treatment"] == "Control"].set_index("plot")[tcol]
+            treat_m = succ_meas[succ_meas["Treatment"] == tr].set_index("plot")[tcol]
+            diff_m = (treat_m - ctrl_m) * 100
+            m_diffs.append(diff_m.mean())
+            m_stds.append(diff_m.std())
+            m_blocks.append(diff_m.values)
 
-        offset = (s_i - 0.5) * width_e * 1.3
-        ax_c.bar(x_eff + offset, diffs, width_e, color=color, alpha=0.85,
-                 edgecolor='none', label=label)
-        ax_c.errorbar(x_eff + offset, diffs, yerr=diff_stds,
+            ctrl_e = succ_pred[succ_pred["Treatment"] == "Control"].set_index("plot")[pcol]
+            treat_e = succ_pred[succ_pred["Treatment"] == tr].set_index("plot")[pcol]
+            diff_e = (treat_e - ctrl_e) * 100
+            e_diffs.append(diff_e.mean())
+            e_stds.append(diff_e.std())
+            e_blocks.append(diff_e.values)
+
+        meas_pos = (-1.5 + s_i * 2) * width_e
+        est_pos = (-0.5 + s_i * 2) * width_e
+
+        ax_c.bar(x_eff + meas_pos, m_diffs, width_e, color=color, alpha=0.85,
+                 edgecolor='none')
+        ax_c.errorbar(x_eff + meas_pos, m_diffs, yerr=m_stds,
                       fmt='none', ecolor='gray', elinewidth=0.8, capsize=2)
-        # Block dots
         for t_i in range(len(effect_treats)):
-            ax_c.scatter(np.full_like(block_diffs[t_i], x_eff[t_i] + offset),
-                         block_diffs[t_i], color='black', s=10, zorder=5, alpha=0.6)
+            ax_c.scatter(np.full_like(m_blocks[t_i], x_eff[t_i] + meas_pos),
+                         m_blocks[t_i], color='black', s=8, zorder=5, alpha=0.6)
+
+        ax_c.bar(x_eff + est_pos, e_diffs, width_e, color=color, alpha=0.4,
+                 edgecolor=color, linewidth=1.0, hatch='///')
+        ax_c.errorbar(x_eff + est_pos, e_diffs, yerr=e_stds,
+                      fmt='none', ecolor='gray', elinewidth=0.8, capsize=2)
+        for t_i in range(len(effect_treats)):
+            ax_c.scatter(np.full_like(e_blocks[t_i], x_eff[t_i] + est_pos),
+                         e_blocks[t_i], color='black', s=8, zorder=5, alpha=0.6,
+                         marker='x')
 
     ax_c.axhline(0, color='black', linewidth=0.8, linestyle='-', zorder=0)
     ax_c.set_xticks(x_eff)
@@ -236,35 +254,53 @@ def main():
     ax_c.spines['top'].set_visible(False)
     ax_c.spines['right'].set_visible(False)
     ax_c.tick_params(labelsize=10)
-    # Legend shown in panel (a), not here
 
     # ===================================================================
     # Panel (d): Treatment effect — BFT components (difference from Control)
+    #            Measured (solid) + Estimated (hatched) side by side
     # ===================================================================
     ax_d = fig.add_subplot(gs[1, 1])
 
-    width_d = 0.12
+    width_d = 0.07
 
-    for s_i, (tcol, label, color) in enumerate(
-            zip(bft_targets, bft_labels_short, bft_colors)):
-        diffs, diff_stds = [], []
-        block_diffs = []
+    for s_i, (tcol, pcol, label, color) in enumerate(
+            zip(bft_targets, bft_preds, bft_labels_short, bft_colors)):
+        m_diffs, m_stds, m_blocks = [], [], []
+        e_diffs, e_stds, e_blocks = [], [], []
         for tr in effect_treats:
-            ctrl = bft_meas[bft_meas["Treatment"] == "Control"].set_index("plot")[tcol]
-            treat_vals = bft_meas[bft_meas["Treatment"] == tr].set_index("plot")[tcol]
-            diff = (treat_vals - ctrl) * 100
-            diffs.append(diff.mean())
-            diff_stds.append(diff.std())
-            block_diffs.append(diff.values)
+            ctrl_m = bft_meas[bft_meas["Treatment"] == "Control"].set_index("plot")[tcol]
+            treat_m = bft_meas[bft_meas["Treatment"] == tr].set_index("plot")[tcol]
+            diff_m = (treat_m - ctrl_m) * 100
+            m_diffs.append(diff_m.mean())
+            m_stds.append(diff_m.std())
+            m_blocks.append(diff_m.values)
 
-        offset = (s_i - (n_comp - 1) / 2) * width_d * 1.3
-        ax_d.bar(x_eff + offset, diffs, width_d, color=color, alpha=0.85,
-                 edgecolor='none', label=label)
-        ax_d.errorbar(x_eff + offset, diffs, yerr=diff_stds,
+            ctrl_e = bft_pred[bft_pred["Treatment"] == "Control"].set_index("plot")[pcol]
+            treat_e = bft_pred[bft_pred["Treatment"] == tr].set_index("plot")[pcol]
+            diff_e = (treat_e - ctrl_e) * 100
+            e_diffs.append(diff_e.mean())
+            e_stds.append(diff_e.std())
+            e_blocks.append(diff_e.values)
+
+        meas_pos = (-3.5 + s_i * 2) * width_d
+        est_pos = (-2.5 + s_i * 2) * width_d
+
+        ax_d.bar(x_eff + meas_pos, m_diffs, width_d, color=color, alpha=0.85,
+                 edgecolor='none')
+        ax_d.errorbar(x_eff + meas_pos, m_diffs, yerr=m_stds,
                       fmt='none', ecolor='gray', elinewidth=0.6, capsize=1.5)
         for t_i in range(len(effect_treats)):
-            ax_d.scatter(np.full_like(block_diffs[t_i], x_eff[t_i] + offset),
-                         block_diffs[t_i], color='black', s=8, zorder=5, alpha=0.6)
+            ax_d.scatter(np.full_like(m_blocks[t_i], x_eff[t_i] + meas_pos),
+                         m_blocks[t_i], color='black', s=6, zorder=5, alpha=0.6)
+
+        ax_d.bar(x_eff + est_pos, e_diffs, width_d, color=color, alpha=0.4,
+                 edgecolor=color, linewidth=0.8, hatch='///')
+        ax_d.errorbar(x_eff + est_pos, e_diffs, yerr=e_stds,
+                      fmt='none', ecolor='gray', elinewidth=0.6, capsize=1.5)
+        for t_i in range(len(effect_treats)):
+            ax_d.scatter(np.full_like(e_blocks[t_i], x_eff[t_i] + est_pos),
+                         e_blocks[t_i], color='black', s=6, zorder=5, alpha=0.6,
+                         marker='x')
 
     ax_d.axhline(0, color='black', linewidth=0.8, linestyle='-', zorder=0)
     ax_d.set_xticks(x_eff)
@@ -276,7 +312,6 @@ def main():
     ax_d.spines['top'].set_visible(False)
     ax_d.spines['right'].set_visible(False)
     ax_d.tick_params(labelsize=10)
-    # Legend shown in panel (b), not here
 
     # --- Save ---
     out_file = out_dir / 'Figure8_v2.png'

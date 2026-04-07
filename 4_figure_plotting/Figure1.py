@@ -496,9 +496,13 @@ def main():
 
     v_right = tr - tl
     v_down = bl - tl
-    origin = tl
-    v_r = v_right
-    v_d = v_down
+    # Shrink the grid and shift upward to avoid circles at bottom
+    inset_lr = 0.20   # left-right inset
+    inset_top = 0.03  # top inset (smaller to include vegetation)
+    inset_bot = 0.28  # bottom inset (larger to avoid circles)
+    origin = tl + inset_lr * v_right + inset_top * v_down
+    v_r = v_right * (1 - 2 * inset_lr)
+    v_d = v_down * (1 - inset_top - inset_bot)
 
     from matplotlib.patches import Polygon as MplPolygon
 
@@ -535,7 +539,12 @@ def main():
             )
             subplot_num += 1
 
-    grid_corners = np.array([tl, tr, br, bl, tl])
+    # Cyan box aligned with grid edges
+    g_tl = origin
+    g_tr = origin + v_r
+    g_br = origin + v_r + v_d
+    g_bl = origin + v_d
+    grid_corners = np.array([g_tl, g_tr, g_br, g_bl, g_tl])
     ax_d.plot(grid_corners[:, 0], grid_corners[:, 1],
               color='cyan', linewidth=2.0, zorder=3)
 
