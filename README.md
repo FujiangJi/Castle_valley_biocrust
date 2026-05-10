@@ -4,11 +4,11 @@
 
 [Fujiang Ji](https://fujiangji.github.io/) <sup>1, *</sup>, [Sasha C. Reed](https://www.usgs.gov/staff-profiles/sasha-reed) <sup>2</sup>, [Miguel L. Villarreal](https://www.usgs.gov/staff-profiles/miguel-villarreal) <sup>3</sup>, [Cara Lauria](https://www.usgs.gov/staff-profiles/cara-marie-lauria) <sup>2</sup>, [William A. Rutherford](https://snre.arizona.edu/william-austin-rutherford) <sup>1, 4</sup>, [Min Chen](https://globalchange.cals.wisc.edu/staff/chen-min/) <sup>5</sup>, [Armin Howell](https://www.researchgate.net/profile/Armin-Howell) <sup>2</sup>, [Josh von Nonn](https://www.researchgate.net/profile/Joshua-Nonn) <sup>3</sup>, [William K. Smith](https://snre.cals.arizona.edu/people/william-smith) <sup>1</sup>
 
-<sup>1</sup> School of Natural Resources and the Environment, University of Arizona, Tucson, AZ, USA;
-<sup>2</sup> U.S. Geological Survey, Southwest Biological Science Center, Moab, UT, USA;
-<sup>3</sup> U.S. Geological Survey, Western Geographic Science Center, Moffett Field, CA, USA;
-<sup>4</sup> U.S. Department of Interior, Bureau of Land Management, Arizona State Office, Tucson, AZ, USA;
-<sup>5</sup> Department of Forest and Wildlife Ecology, University of Wisconsin–Madison, Madison, WI, USA.
+<sup>1</sup> School of Natural Resources and the Environment, University of Arizona, Tucson, AZ, USA  
+<sup>2</sup> U.S. Geological Survey, Southwest Biological Science Center, Moab, UT, USA  
+<sup>3</sup> U.S. Geological Survey, Western Geographic Science Center, Moffett Field, CA, USA  
+<sup>4</sup> U.S. Department of Interior, Bureau of Land Management, Arizona State Office, Tucson, AZ, USA  
+<sup>5</sup> Department of Forest and Wildlife Ecology, University of Wisconsin–Madison, Madison, WI, USA
 
 </div>
 
@@ -32,7 +32,7 @@ The `0_data/` folder contains the raw inputs used in this study:
 **Note:** Processed measured mixtures and synthetic mixtures (~400 MB each for linear and bilinear) are not included in this repository due to size. Both can be regenerated locally by running the scripts in `1_data_processing/` and `3_synthetic_approach/`.
 
 <img src="figs/Figure1.png" title="" alt="" data-align="center">
-<p align="center">Fig. 1. Castle Valley long-term climate manipulation experiment at 38.67°N, 109.42°W, Colorado Plateau, Utah. Four treatments (Control, AltP, Warmed, AltP+Warmed) × five replicate blocks × 15 subplots per plot.</p>
+<p align="center"><b>Fig. 1.</b> Castle Valley long-term climate manipulation experiment at 38.67°N, 109.42°W, Colorado Plateau, Utah. Four treatments (Control, AltP, Warmed, AltP+Warmed) × five replicate blocks × 15 subplots per plot.</p>
 
 ## Modeling framework
 This study uses two complementary modeling approaches:
@@ -41,7 +41,7 @@ This study uses two complementary modeling approaches:
 * **Approach 2 — Transfer learning (1D-CNN)**: pretrained on 10,000 synthetic mixed spectra generated from the pure endmember library using linear and bilinear mixing models (Dirichlet-distributed fractional abundances), then fine-tuned on the 240 measured spectra with 5-fold cross-validation. The CNN architecture has three convolutional blocks (32, 64, 128 filters; kernels 7, 5, 3) followed by adaptive average pooling and fully connected layers with dropout (p=0.3). Bilinear mixing produced higher accuracy than linear mixing and is reported as the final result.
 
 <img src="figs/Figure_workflow.png" title="" alt="" data-align="center">
-<p align="center">Fig. 2. Methodological workflow combining Random Forest regression on measured mixed spectra and a 1D-CNN transfer-learning pipeline pretrained on synthetic mixtures and fine-tuned on measured data.</p>
+<p align="center"><b>Fig. 2.</b> Methodological workflow combining Random Forest regression on measured mixed spectra and a 1D-CNN transfer-learning pipeline pretrained on synthetic mixtures and fine-tuned on measured data.</p>
 
 ## Requirements
 * `python>=3.7`
