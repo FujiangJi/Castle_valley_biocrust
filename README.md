@@ -31,13 +31,17 @@ The `0_data/` folder contains the raw inputs used in this study:
 
 **Note:** Processed measured mixtures and synthetic mixtures (~400 MB each for linear and bilinear) are not included in this repository due to size. Both can be regenerated locally by running the scripts in `1_data_processing/` and `3_synthetic_approach/`.
 
-<p align="center">Castle Valley long-term climate manipulation experiment at 38.67°N, 109.42°W, Colorado Plateau, Utah. Four treatments (Control, AltP, Warmed, AltP+Warmed) × five replicate blocks × 15 subplots per plot.</p>
+<img src="figs/Figure1.png" title="" alt="" data-align="center">
+<p align="center">Fig. 1. Castle Valley long-term climate manipulation experiment at 38.67°N, 109.42°W, Colorado Plateau, Utah. Four treatments (Control, AltP, Warmed, AltP+Warmed) × five replicate blocks × 15 subplots per plot.</p>
 
 ## Modeling framework
 This study uses two complementary modeling approaches:
 
 * **Approach 1 — Random Forest regression**: trained directly on 240 paired measured mixed spectra and field-based fractional cover observations. Eight configurations are evaluated (RF vs. PCA+RF × 3-class vs. 5-class × reflectance only vs. reflectance + 10 spectral indices). Nested 5-fold cross-validation with `RandomizedSearchCV` (60 iterations) for hyperparameter tuning.
 * **Approach 2 — Transfer learning (1D-CNN)**: pretrained on 10,000 synthetic mixed spectra generated from the pure endmember library using linear and bilinear mixing models (Dirichlet-distributed fractional abundances), then fine-tuned on the 240 measured spectra with 5-fold cross-validation. The CNN architecture has three convolutional blocks (32, 64, 128 filters; kernels 7, 5, 3) followed by adaptive average pooling and fully connected layers with dropout (p=0.3). Bilinear mixing produced higher accuracy than linear mixing and is reported as the final result.
+
+<img src="figs/Figure_workflow.png" title="" alt="" data-align="center">
+<p align="center">Fig. 2. Methodological workflow combining Random Forest regression on measured mixed spectra and a 1D-CNN transfer-learning pipeline pretrained on synthetic mixtures and fine-tuned on measured data.</p>
 
 ## Requirements
 * `python>=3.7`
