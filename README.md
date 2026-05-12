@@ -2,7 +2,7 @@
 
 <h1>Hyperspectral reflectance reveals climate change–driven successional regression in dryland biocrust communities</h1>
 
-[Fujiang Ji](https://fujiangji.github.io/) <sup>1, *</sup>, [Sasha C. Reed](https://www.usgs.gov/staff-profiles/sasha-reed) <sup>2</sup>, [Miguel L. Villarreal](https://www.usgs.gov/staff-profiles/miguel-villarreal) <sup>3</sup>, [Cara Lauria](https://www.usgs.gov/staff-profiles/cara-marie-lauria) <sup>2</sup>, [William A. Rutherford](https://snre.arizona.edu/william-austin-rutherford) <sup>1, 4</sup>, [Min Chen](https://globalchange.cals.wisc.edu/staff/chen-min/) <sup>5</sup>, [Armin Howell](https://www.researchgate.net/profile/Armin-Howell) <sup>2</sup>, [Josh von Nonn](https://www.researchgate.net/profile/Joshua-Nonn) <sup>3</sup>, [William K. Smith](https://snre.cals.arizona.edu/people/william-smith) <sup>1</sup>
+[Fujiang Ji](https://fujiangji.github.io/) <sup>1, *</sup>, [Sasha C. Reed](https://www.usgs.gov/staff-profiles/sasha-reed) <sup>2</sup>, [Miguel L. Villarreal](https://www.usgs.gov/staff-profiles/miguel-villarreal) <sup>3</sup>, [Cara Lauria](https://www.usgs.gov/staff-profiles/cara-marie-lauria) <sup>2</sup>, [William A. Rutherford](https://snre.arizona.edu/william-austin-rutherford) <sup>1, 4</sup>, [Min Chen](https://globalchange.cals.wisc.edu/staff/chen-min/) <sup>5</sup>, [Armin Howell](https://www.researchgate.net/profile/Armin-Howell) <sup>2</sup>, [William K. Smith](https://snre.cals.arizona.edu/people/william-smith) <sup>1</sup>
 
 <sup>1</sup> School of Natural Resources and the Environment, University of Arizona, Tucson, AZ, USA  
 <sup>2</sup> U.S. Geological Survey, Southwest Biological Science Center, Moab, UT, USA  
