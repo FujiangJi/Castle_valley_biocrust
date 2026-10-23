@@ -13,12 +13,13 @@ import seaborn as sns
 
 def main():
     root = Path(__file__).resolve().parent
-    cnn_dir = root.parent.parent / "4_Castle_valley_analysis_synthetic_approach" / "3_results"
+    cnn_dir = root.parent.parent / "re_do_analysis" / "synthetic" / "3_results"
     out_dir = root / "0_exported_figures"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Fine-tuned 1D-CNN, bilinear mixing (higher accuracy than linear)
-    df = pd.read_csv(cnn_dir / "final_model_estimation_bilinear_3scheme.csv")
+    # v2 re-do: 4-class scheme (Bare is predicted by the model but not shown here)
+    df = pd.read_csv(cnn_dir / "final_model_estimation_bilinear_4scheme.csv")
     df["plot"] = df["full"].apply(lambda x: x.split("_")[0])
     df["treat"] = df["full"].apply(lambda x: x.split("_")[1])
     df["Spectra"] = df["full"].apply(lambda x: x.split("_")[2])
@@ -31,6 +32,7 @@ def main():
     target_cols = ["frac_Vegetation", "frac_late_successional", "frac_early_successional"]
     pred_cols = [f"pred_{c}" for c in target_cols]
     heatmap_labels = ["Senescent Vegetation", "Late Succ.", "Early Succ."]
+    n_targets = len(target_cols)
     treats = ["Control", "AltP", "Warmed", "AltP+Warmed"]
     plots_list = ["B1", "B2", "B3", "B4", "B5"]
     target_colors = ['#6a51a3', '#238b45', '#e6550d']  # Darker Purple, Green, Orange
@@ -52,7 +54,7 @@ def main():
         for t_i, tr in enumerate(treats):
             row_t, col_t = divmod(t_i, 2)
             inner = gridspec.GridSpecFromSubplotSpec(
-                2, 3, subplot_spec=gs_heat[row_t, col_t],
+                2, n_targets, subplot_spec=gs_heat[row_t, col_t],
                 wspace=0.1, hspace=0.15)
 
             df_temp = df[(df["plot"] == p) & (df["Treatment"] == tr)].copy()
@@ -68,7 +70,7 @@ def main():
             k = 0
             first_ax_pos = None
             for i in range(2):
-                for j in range(3):
+                for j in range(n_targets):
                     ax = fig.add_subplot(inner[i, j])
                     if k == 0:
                         first_ax_pos = ax.get_position()
@@ -121,7 +123,7 @@ def main():
                  fontsize=12, fontweight='bold', va='top', ha='left')
 
         # === Bottom: 1x3 residual boxplots ===
-        gs_box = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=outer[1],
+        gs_box = gridspec.GridSpecFromSubplotSpec(1, n_targets, subplot_spec=outer[1],
                                                    wspace=0.25)
 
         df_plot = df[df["plot"] == p]
@@ -173,8 +175,8 @@ def main():
             # Overall R²/MAE for this target across all treatments
             x_all = df_plot[pcol].values * 100
             y_all = df_plot[tcol].values * 100
-            _, _, r_all, _, _ = sp_stats.linregress(x_all, y_all)
-            r2_all = r_all**2
+            # Coefficient of determination R² = 1 - SSE/SST (pred vs obs)
+            r2_all = 1.0 - np.sum((y_all - x_all) ** 2) / np.sum((y_all - y_all.mean()) ** 2)
             mae_all = np.abs(x_all - y_all).mean()
             ax.text(0.97, 0.05,
                     f'Overall: R²={r2_all:.2f}, MAE={mae_all:.1f}%',

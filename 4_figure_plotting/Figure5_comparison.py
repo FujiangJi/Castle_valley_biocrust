@@ -3,7 +3,7 @@ Figure 5 comparison: Feature importance across two scenarios
 Row 1: Pure endmember (classification)
 Row 2: Measured mixture (regression)
 
-Columns: Late Succ., Early Succ., DkCy, Lichen, Moss
+Columns: Late Succ., Early Succ., DkCy, Lichen, Moss, Bare Substrate
 """
 from pathlib import Path
 
@@ -11,98 +11,140 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from scipy import stats
+
+
+def rsquared(x, y):
+    """Coefficient of determination R² = 1 - SSE/SST, with x = predicted
+    and y = observed. Same definition as Figure3.py / Figure4.py."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    sse = np.sum((y - x) ** 2)
+    sst = np.sum((y - y.mean()) ** 2)
+    return 1.0 - sse / sst
+
+
+def class_recall(summary_path):
+    """Per-class recall parsed from rf_pure_endmember_classification_summary.txt,
+    as {'6class': {class: recall}, '4class': {class: recall}}."""
+    out, scheme = {}, None
+    for line in summary_path.read_text().splitlines():
+        if "-class accuracy:" in line:
+            scheme = line.split("-class")[0].strip() + "class"
+            out[scheme] = {}
+            continue
+        parts = line.split()
+        # classification-report rows: name precision recall f1 support
+        if scheme and len(parts) == 5 and "." in parts[1] and "." in parts[2]:
+            out[scheme][parts[0]] = float(parts[2])
+    return out
+
+
+# Target name -> class name in the pure-endmember classification summary
+PURE_CLASS = {'frac_late_successional': 'Late_Successional', 'frac_early_successional': 'Early_Successional',
+              'frac_DkCy': 'DkCy', 'frac_Lichen': 'Lichen', 'frac_Moss': 'Moss', 'frac_Bare': 'Bare'}
 
 
 def main():
     root = Path(__file__).resolve().parent
-    rf_dir = root.parent.parent / "4_Castle_valley_analysis_RF" / "2_results"
+    rf_dir = root.parent.parent / "re_do_analysis" / "RF" / "2_results"
     out_dir = root / "0_exported_figures"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # --- Load feature importance data ---
+    # --- Load feature importance data (v2 re-do, with bare substrate) ---
     # Row 1: Pure endmember (classification)
-    df_pure_3 = pd.read_csv(rf_dir / "rf_feature_importance_pure_endmember_3class.csv")
+    df_pure_4 = pd.read_csv(rf_dir / "rf_feature_importance_pure_endmember_4class.csv")
     df_pure_6 = pd.read_csv(rf_dir / "rf_feature_importance_pure_endmember_6class.csv")
 
     # Row 2: Measured mixture (regression) — reflectance only feature importance
-    df_meas_3 = pd.read_csv(rf_dir / "rf_separate_3class_refl_feature_imp.csv")
-    df_meas_5 = pd.read_csv(rf_dir / "rf_separate_5class_refl_feature_imp.csv")
+    df_meas_4 = pd.read_csv(rf_dir / "rf_separate_4class_refl_feature_imp.csv")
+    df_meas_6 = pd.read_csv(rf_dir / "rf_separate_6class_refl_feature_imp.csv")
 
     # --- Wavelengths ---
-    band_cols_3 = [c for c in df_meas_3.columns if c != 'target_name']
-    band_cols_5 = [c for c in df_meas_5.columns if c != 'target_name']
-    band_cols_pure = [c for c in df_pure_3.columns if c != 'target_name']
+    band_cols_4 = [c for c in df_meas_4.columns if c != 'target_name']
+    band_cols_6 = [c for c in df_meas_6.columns if c != 'target_name']
+    band_cols_pure = [c for c in df_pure_4.columns if c != 'target_name']
 
-    wl_3 = np.array([float(c) for c in band_cols_3])
-    wl_5 = np.array([float(c) for c in band_cols_5])
+    wl_4 = np.array([float(c) for c in band_cols_4])
+    wl_6 = np.array([float(c) for c in band_cols_6])
     wl_pure = np.array([float(c) for c in band_cols_pure])
 
     bad_bands = [[1320, 1440], [1770, 1960]]
 
     # --- Panel definitions ---
-    # (title, target_name_3class, target_name_5class, color)
+    # (title, target_name_4class, target_name_6class, color)
     panels = [
         ('Late Succ.\n(DkCy+Lichen+Moss)', 'frac_late_successional', None, '#377eb8'),
         ('Early Succ.\n(LtCy)', 'frac_early_successional', None, '#e41a1c'),
         ('DkCy', None, 'frac_DkCy', '#4daf4a'),
         ('Lichen', None, 'frac_Lichen', '#00bfc4'),
         ('Moss', None, 'frac_Moss', '#984ea3'),
+        ('Bare Substrate\n(Rock+Soil)', 'frac_Bare', None, '#636363'),
     ]
 
     row_labels = ['Pure Endmember\n(Classification)', 'Measured Mixture\n(Regression)']
 
     # Per-class metrics for annotation on each panel
-    # Row 0: per-class accuracy (recall) from classification report
-    # Row 1: R² from measured mixture (refl only / refl+indices, matching Figure 3 & 4)
-    panel_metrics = {
-        # Row 0: Pure endmember accuracy (recall)
-        (0, 0): 'Accu = 93%',   # Late Succ (3-class)
-        (0, 1): 'Accu = 89%',   # Early Succ (3-class)
-        (0, 2): 'Accu = 69%',   # DkCy (6-class)
-        (0, 3): 'Accu = 56%',   # Lichen (6-class)
-        (0, 4): 'Accu = 67%',   # Moss (6-class)
-        # Row 1: R² (refl only / refl+indices) — from new RF outputs
-        (1, 0): 'R² = 0.38 ~ 0.48',   # Late Succ
-        (1, 1): 'R² = 0.50 ~ 0.52',   # Early Succ
-        (1, 2): 'R² = 0.19 ~ 0.28',   # DkCy
-        (1, 3): 'R² = 0.14 ~ 0.17',   # Lichen
-        (1, 4): 'R² = 0.18 ~ 0.34',   # Moss
-    }
+    # Row 0: per-class accuracy (recall) read from
+    #        rf_pure_endmember_classification_summary.txt
+    #        (4-class: Late/Early/Bare; 6-class: DkCy/Lichen/Moss)
+    recall = class_recall(rf_dir / "rf_pure_endmember_classification_summary.txt")
+    panel_metrics = {}
+    for col_i, (_, t4, t6, _) in enumerate(panels):
+        scheme, target = ('4class', t4) if t4 else ('6class', t6)
+        panel_metrics[(0, col_i)] = f'Accu = {recall[scheme][PURE_CLASS[target]] * 100:.0f}%'
 
-    # --- Figure: 2 rows x 5 cols ---
-    fig = plt.figure(figsize=(12, 4))
-    gs = gridspec.GridSpec(2, 5, hspace=0.2, wspace=0.25)
+    # Row 1: R² range (min ~ max) across the four RF-based configurations
+    #        (RF and PCA+RF, each with reflectance only and reflectance +
+    #        indices), computed from the same prediction CSVs and the same
+    #        rsquared() as Figure 3 (4-class: Late/Early/Bare) and Figure 4
+    #        (6-class: DkCy/Lichen/Moss), so the numbers match those figures.
+    configs = ['rf_refl', 'rf_refl_indices', 'pca_rf_refl', 'pca_rf_refl_indices']
+    pred_4 = {c: pd.read_csv(rf_dir / f"rf_4class_{c}_predictions.csv") for c in configs}
+    pred_6 = {c: pd.read_csv(rf_dir / f"rf_6class_{c}_predictions.csv") for c in configs}
+    for col_i, (_, t4, t6, _) in enumerate(panels):
+        target = t4 if t4 else t6
+        preds = pred_4 if t4 else pred_6
+        r2_vals = sorted(
+            rsquared(df[f'pred_{target}'], df[target]) for df in preds.values()
+        )
+        panel_metrics[(1, col_i)] = f'R² = {r2_vals[0]:.2f} ~ {r2_vals[-1]:.2f}'
 
-    for col_i, (title, t3, t5, color) in enumerate(panels):
+    # --- Figure: 2 rows x 6 cols ---
+    n_cols = len(panels)
+    fig = plt.figure(figsize=(14, 4))
+    gs = gridspec.GridSpec(2, n_cols, hspace=0.2, wspace=0.25)
+
+    for col_i, (title, t4, t6, color) in enumerate(panels):
         for row_i in range(2):
             ax = fig.add_subplot(gs[row_i, col_i])
 
             if row_i == 0:
                 # Pure endmember
-                if t3:
-                    df_src = df_pure_3
+                if t4:
+                    df_src = df_pure_4
                 else:
                     df_src = df_pure_6
                 bcols = band_cols_pure
                 wl = wl_pure
             else:
                 # Measured mixture
-                if t3:
-                    df_src = df_meas_3
-                    bcols = band_cols_3
-                    wl = wl_3
+                if t4:
+                    df_src = df_meas_4
+                    bcols = band_cols_4
+                    wl = wl_4
                 else:
-                    df_src = df_meas_5
-                    bcols = band_cols_5
-                    wl = wl_5
+                    df_src = df_meas_6
+                    bcols = band_cols_6
+                    wl = wl_6
 
             # Get target name
-            target = t3 if t3 else t5
+            target = t4 if t4 else t6
 
-            # For pure endmember, target_name is 'all_3class' or 'all_6class'
+            # For pure endmember, target_name is 'all_4class' or 'all_6class'
             if row_i == 0:
-                if t3:
-                    subset = df_src[df_src['target_name'] == 'all_3class']
+                if t4:
+                    subset = df_src[df_src['target_name'] == 'all_4class']
                 else:
                     subset = df_src[df_src['target_name'] == 'all_6class']
             else:

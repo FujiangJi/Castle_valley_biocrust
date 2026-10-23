@@ -8,35 +8,35 @@ import matplotlib.gridspec as gridspec
 
 def main():
     root = Path(__file__).resolve().parent
-    rf_dir = root.parent.parent / "4_Castle_valley_analysis_RF" / "2_results"
+    rf_dir = root.parent.parent / "re_do_analysis" / "RF" / "2_results"
     out_dir = root / "0_exported_figures"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # --- Load data (reflectance only, per-class feature importance) ---
-    df3 = pd.read_csv(rf_dir / "rf_separate_3class_refl_feature_imp.csv")
-    df5 = pd.read_csv(rf_dir / "rf_separate_5class_refl_feature_imp.csv")
+    # --- Load data (v2 re-do; reflectance only, per-class feature importance) ---
+    df4 = pd.read_csv(rf_dir / "rf_separate_4class_refl_feature_imp.csv")
+    df6 = pd.read_csv(rf_dir / "rf_separate_6class_refl_feature_imp.csv")
 
     # Band columns (all except target_name)
-    band_cols_3 = [c for c in df3.columns if c != 'target_name']
-    band_cols_5 = [c for c in df5.columns if c != 'target_name']
-    wavelengths_3 = np.array([float(c) for c in band_cols_3])
-    wavelengths_5 = np.array([float(c) for c in band_cols_5])
+    band_cols_4 = [c for c in df4.columns if c != 'target_name']
+    band_cols_6 = [c for c in df6.columns if c != 'target_name']
+    wavelengths_4 = np.array([float(c) for c in band_cols_4])
+    wavelengths_6 = np.array([float(c) for c in band_cols_6])
 
     # --- Define panels ---
-    # Senescent Vegetation uses df3 (3-class scheme) with frac_Vegetation
-    # since the 5-class scheme only contains DkCy/Lichen/Moss
+    # Senescent Vegetation uses df4 (4-class scheme) since the 6-class file
+    # only contains DkCy/Lichen/Moss. Bare is in df4 but not shown here.
     panels = [
-        ('Late Succ. (DkCy+Lichen+Moss)', df3, band_cols_3, wavelengths_3,
+        ('Late Succ. (DkCy+Lichen+Moss)', df4, band_cols_4, wavelengths_4,
          'frac_late_successional', '#377eb8'),
-        ('Early Succ. (LtCy)', df3, band_cols_3, wavelengths_3,
+        ('Early Succ. (LtCy)', df4, band_cols_4, wavelengths_4,
          'frac_early_successional', '#e41a1c'),
-        ('DkCy', df5, band_cols_5, wavelengths_5,
+        ('DkCy', df6, band_cols_6, wavelengths_6,
          'frac_DkCy', '#4daf4a'),
-        ('Lichen', df5, band_cols_5, wavelengths_5,
+        ('Lichen', df6, band_cols_6, wavelengths_6,
          'frac_Lichen', '#00bfc4'),
-        ('Moss', df5, band_cols_5, wavelengths_5,
+        ('Moss', df6, band_cols_6, wavelengths_6,
          'frac_Moss', '#984ea3'),
-        ('Senescent Vegetation', df3, band_cols_3, wavelengths_3,
+        ('Senescent Vegetation', df4, band_cols_4, wavelengths_4,
          'frac_Vegetation', '#a6761d'),
     ]
 
@@ -44,11 +44,13 @@ def main():
     bad_bands = [[1320, 1440], [1770, 1960]]
 
     # --- Figure: 2 rows x 3 cols ---
+    n_cols = 3
     fig = plt.figure(figsize=(9, 4))
-    gs = gridspec.GridSpec(2, 3, left=0, right=1, top=1, bottom=0, hspace=0.3, wspace=0.25)
+    gs = gridspec.GridSpec(2, n_cols, left=0, right=1, top=1, bottom=0,
+                           hspace=0.3, wspace=0.25)
 
     for idx, (title, df, bcols, wl, target, color) in enumerate(panels):
-        row, col = divmod(idx, 3)
+        row, col = divmod(idx, n_cols)
         ax = fig.add_subplot(gs[row, col])
 
         subset = df[df['target_name'] == target]
@@ -136,7 +138,10 @@ def main():
             for rlo, rhi in final:
                 ax.axvspan(rlo, rhi, color=color, alpha=0.30, zorder=0)
                 # Label the region at top of panel
-                center = (rlo + rhi) / 2
+                # Keep the label clear of the axes frame when a region
+                # touches the 400 / 2400 nm edge
+                label_margin = 45  # nm
+                center = np.clip((rlo + rhi) / 2, 400 + label_margin, 2400 - label_margin)
                 ylim = ax.get_ylim()
                 ax.text(center, ylim[1] * 0.98,
                         f'{int(rlo)}–{int(rhi)} nm',

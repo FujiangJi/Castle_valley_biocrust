@@ -1,8 +1,13 @@
 """
-RF classification of pure endmember spectra (no mixing).
-Quantifies how separable biocrust functional types are from their spectral signatures alone.
-Outputs: confusion matrix, per-band feature importance, classification accuracy (.txt summary).
+RF classification of pure endmember spectra (no mixing), v2. Classes match the regression targets:
+green vegetation (BRT) and litter (LTR) are merged into senescent vegetation, and Rock + Soil are
+grouped as bare substrate ('Bare', 6 spectra — small; reported with that caveat).
+Quantifies how separable the modelled components are from their spectral signatures alone.
+Outputs: confusion matrix, per-band feature importance, classification accuracy (.txt summary)
+for the 6-class (= 6-target scheme) and 4-class (= 4-target scheme) groupings.
+Usage: python 4_RF_pure_endmember_classification.py [--out-dir ../2_results]
 """
+import argparse
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -22,7 +27,10 @@ def parse_component(name):
 def main():
     script_dir = Path(__file__).resolve().parent
     data_dir = script_dir.parent / "1_data" / "ASD_Specra"
-    out_dir = script_dir.parent / "2_results"
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out-dir", default=str(script_dir.parent / "2_results"))
+    out_dir = Path(ap.parse_args().out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Load pure endmember spectra ---
     df = pd.read_csv(data_dir / "ASD_All_Spectra_ContactProbe.csv")
@@ -30,17 +38,14 @@ def main():
     band_cols = df.columns[1:]
 
     df['component'] = df[id_col].astype(str).apply(parse_component)
-    df.loc[df['component'] == 'BRT', 'component'] = 'Vegetation'
+    # Green vegetation (BRT) and litter (LTR) form one class, as in the regression targets
+    df.loc[df['component'].isin(['BRT', 'LTR']), 'component'] = 'Vegetation'
     df.loc[df['component'] == 'DCY', 'component'] = 'DkCy'
     df.loc[df['component'] == 'LCN', 'component'] = 'Lichen'
     df.loc[df['component'] == 'LCY', 'component'] = 'LtCy'
-    df.loc[df['component'] == 'LTR', 'component'] = 'Litter'
     df.loc[df['component'] == 'MSS', 'component'] = 'Moss'
-    df.loc[df['component'] == 'ROCK', 'component'] = 'Rock'
-    df.loc[df['component'] == 'SOIL', 'component'] = 'Soil'
-
-    # Exclude Rock and Soil
-    df = df[~df['component'].isin(['Rock', 'Soil'])]
+    # Rock and Soil are kept and grouped as bare substrate
+    df.loc[df['component'].isin(['ROCK', 'SOIL']), 'component'] = 'Bare'
 
     # Remove bad bands
     bad_bands = [[1320, 1440], [1770, 1960]]
@@ -67,7 +72,7 @@ def main():
     outer_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
     # =====================================================================
-    # 6-class classification
+    # 6-class classification (= 6-target scheme: Vegetation, DkCy, Lichen, LtCy, Moss, Bare)
     # =====================================================================
     print("\n" + "=" * 60)
     print("6-class classification")
@@ -85,7 +90,7 @@ def main():
         X_train, X_test = X_scaled[train_idx], X_scaled[test_idx]
         y_train, y_test = y6[train_idx], y6[test_idx]
 
-        rf = RandomForestClassifier(n_estimators=500, random_state=42, n_jobs=-1)
+        rf = RandomForestClassifier(n_estimators=500, random_state=42, n_jobs=20)
         rf.fit(X_train, y_train)
 
         y_pred = rf.predict(X_test)
@@ -104,18 +109,17 @@ def main():
     print(report6)
 
     # =====================================================================
-    # 3-class classification
+    # 4-class classification (= 4-target scheme: Late, Early, Vegetation, Bare)
     # =====================================================================
     print("=" * 60)
-    print("3-class classification")
+    print("4-class classification")
     print("=" * 60)
 
     y_3class = y_labels.copy()
     y_3class = np.where(np.isin(y_labels, ['DkCy', 'Lichen', 'Moss']),
                         'Late_Successional', y_3class)
     y_3class = np.where(y_labels == 'LtCy', 'Early_Successional', y_3class)
-    y_3class = np.where(np.isin(y_labels, ['Vegetation', 'Litter']),
-                        'Litter+Vegetation', y_3class)
+    y_3class = np.where(y_labels == 'Vegetation', 'Senescent_Vegetation', y_3class)   # 'Bare' stays 'Bare'
 
     le3 = LabelEncoder()
     y3 = le3.fit_transform(y_3class)
@@ -129,7 +133,7 @@ def main():
         X_train, X_test = X_scaled[train_idx], X_scaled[test_idx]
         y_train, y_test = y3[train_idx], y3[test_idx]
 
-        rf = RandomForestClassifier(n_estimators=500, random_state=42, n_jobs=-1)
+        rf = RandomForestClassifier(n_estimators=500, random_state=42, n_jobs=20)
         rf.fit(X_train, y_train)
 
         y_pred = rf.predict(X_test)
@@ -144,7 +148,7 @@ def main():
     cm3 = confusion_matrix(all_y3_true, all_y3_pred)
     report3 = classification_report(all_y3_true, all_y3_pred, target_names=classes3)
 
-    print(f"\n  Overall 3-class accuracy: {acc3:.3f}")
+    print(f"\n  Overall 4-class accuracy: {acc3:.3f}")
     print(report3)
 
     # =====================================================================
@@ -157,8 +161,8 @@ def main():
     imp6_df.to_csv(out_dir / "rf_feature_importance_pure_endmember_6class.csv", index=False)
 
     imp3_df = pd.DataFrame(np.vstack(fold_imp_3), columns=wavelengths.astype(int))
-    imp3_df['target_name'] = 'all_3class'
-    imp3_df.to_csv(out_dir / "rf_feature_importance_pure_endmember_3class.csv", index=False)
+    imp3_df['target_name'] = 'all_4class'
+    imp3_df.to_csv(out_dir / "rf_feature_importance_pure_endmember_4class.csv", index=False)
 
     # Plain-text summary
     cm6_df = pd.DataFrame(cm6, index=classes6, columns=classes6)
@@ -170,22 +174,24 @@ def main():
     lines.append("")
     lines.append(f"Total samples: {X.shape[0]}, Bands: {X.shape[1]}")
     lines.append(f"Samples per class: {dict(zip(*np.unique(y_labels, return_counts=True)))}")
+    lines.append("Note: 'Vegetation' = green vegetation (BRT) + litter (LTR) spectra, as in the regression targets; "
+                 "'Bare' = Rock + Soil contact-probe spectra (n = 6); small-sample class.")
     lines.append("")
     lines.append(f"6-class accuracy: {acc6:.3f}")
     lines.append(report6)
     lines.append("6-class Confusion Matrix:")
     lines.append(cm6_df.to_string())
     lines.append("")
-    lines.append(f"3-class accuracy: {acc3:.3f}")
+    lines.append(f"4-class accuracy: {acc3:.3f}")
     lines.append(report3)
-    lines.append("3-class Confusion Matrix:")
+    lines.append("4-class Confusion Matrix:")
     lines.append(cm3_df.to_string())
 
     with open(out_dir / "rf_pure_endmember_classification_summary.txt", 'w') as f:
         f.write("\n".join(lines))
 
     print(f"\nSaved: rf_feature_importance_pure_endmember_6class.csv")
-    print(f"Saved: rf_feature_importance_pure_endmember_3class.csv")
+    print(f"Saved: rf_feature_importance_pure_endmember_4class.csv")
     print(f"Saved: rf_pure_endmember_classification_summary.txt")
 
 

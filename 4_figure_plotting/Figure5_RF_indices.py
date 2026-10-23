@@ -8,36 +8,38 @@ import matplotlib.gridspec as gridspec
 
 def main():
     root = Path(__file__).resolve().parent
-    rf_dir = root.parent.parent / "4_Castle_valley_analysis_RF" / "2_results"
+    rf_dir = root.parent.parent / "re_do_analysis" / "RF" / "2_results"
     out_dir = root / "0_exported_figures"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # --- Load data (reflectance + indices feature importance) ---
-    df3 = pd.read_csv(rf_dir / "rf_separate_3class_refl_indices_feature_imp.csv")
-    df5 = pd.read_csv(rf_dir / "rf_separate_5class_refl_indices_feature_imp.csv")
+    # --- Load data (v2 re-do; reflectance + indices feature importance) ---
+    df4 = pd.read_csv(rf_dir / "rf_separate_4class_refl_indices_feature_imp.csv")
+    df6 = pd.read_csv(rf_dir / "rf_separate_6class_refl_indices_feature_imp.csv")
 
-    # Separate wavelength columns from index columns
-    # index_cols = {"brightness_index", "NDVI", "PRI", "NDNI", "NDWI", "MCARI", "soil_moisture"}
-    index_cols = {"brightness_index", "NDVI", "PRI", "NDNI", "NDWI", "MCARI", "soil_moisture", "CI", "SCAI", "BSCI"}
-    band_cols_3 = [c for c in df3.columns if c != 'target_name' and c not in index_cols]
-    band_cols_5 = [c for c in df5.columns if c != 'target_name' and c not in index_cols]
-    wavelengths_3 = np.array([float(c) for c in band_cols_3])
-    wavelengths_5 = np.array([float(c) for c in band_cols_5])
+    # Separate wavelength columns from index columns (index set taken from the results file)
+    index_cols = {c for c in df4.columns if c != 'target_name' and not c.isdigit()}
+    assert index_cols == {c for c in df6.columns if c != 'target_name' and not c.isdigit()}
+    band_cols_4 = [c for c in df4.columns if c != 'target_name' and c not in index_cols]
+    band_cols_6 = [c for c in df6.columns if c != 'target_name' and c not in index_cols]
+    wavelengths_4 = np.array([float(c) for c in band_cols_4])
+    wavelengths_6 = np.array([float(c) for c in band_cols_6])
 
     # --- Compute reflectance band contribution % for each panel ---
     panels = [
-        ('Late Succ. (DkCy+Lichen+Moss)', df3, band_cols_3, wavelengths_3,
+        ('Late Succ. (DkCy+Lichen+Moss)', df4, band_cols_4, wavelengths_4,
          'frac_late_successional', '#377eb8'),
-        ('Early Succ. (LtCy)', df3, band_cols_3, wavelengths_3,
+        ('Early Succ. (LtCy)', df4, band_cols_4, wavelengths_4,
          'frac_early_successional', '#e41a1c'),
-        ('DkCy', df5, band_cols_5, wavelengths_5,
+        ('DkCy', df6, band_cols_6, wavelengths_6,
          'frac_DkCy', '#4daf4a'),
-        ('Lichen', df5, band_cols_5, wavelengths_5,
+        ('Lichen', df6, band_cols_6, wavelengths_6,
          'frac_Lichen', '#00bfc4'),
-        ('Moss', df5, band_cols_5, wavelengths_5,
+        ('Moss', df6, band_cols_6, wavelengths_6,
          'frac_Moss', '#984ea3'),
-        ('Senescent Vegetation', df3, band_cols_3, wavelengths_3,
+        ('Senescent Vegetation', df4, band_cols_4, wavelengths_4,
          'frac_Vegetation', '#a6761d'),
+        ('Bare Substrate', df4, band_cols_4, wavelengths_4,
+         'frac_Bare', '#636363'),
     ]
 
     # Pre-compute band contribution % for subtitles
@@ -51,22 +53,28 @@ def main():
     bad_bands = [[1320, 1440], [1770, 1960]]
 
     # --- Combined figure: nested GridSpec for different spacing ---
-    fig = plt.figure(figsize=(10, 7))
+    n_cols = 4
+    n_panels = len(panels)
+    fig = plt.figure(figsize=(11, 7.5))
     # Outer grid: top block (rows 1-2) and bottom block (row 3)
     outer_gs = gridspec.GridSpec(2, 1, hspace=0.28, height_ratios=[2, 1.5], left=0, right=1, top=1, bottom=0)
-    # Inner grid for rows 1-2 (smaller hspace)
-    gs_top = gridspec.GridSpecFromSubplotSpec(2, 3, subplot_spec=outer_gs[0],
-                                              hspace=0.3, wspace=0.25)
+    # Inner grid for rows 1-2: 7 panels as 4 on top and 3 centred below.
+    # Use an 8-column grid; each panel spans 2 columns, and the bottom row
+    # is offset by one column so its 3 panels sit centred under the 4 above.
+    gs_top = gridspec.GridSpecFromSubplotSpec(2, 2 * n_cols, subplot_spec=outer_gs[0],
+                                              hspace=0.45, wspace=0.7)
     # Bottom row grid
     gs_bot = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=outer_gs[1])
 
     # Panel (a) label above the top rows
-    fig.text(-0.07, 1.07, '(a) The contribution of spectral bands',
+    fig.text(-0.06, 1.07, '(a) The contribution of spectral bands',
              fontsize=12, fontweight='bold', va='top', ha='left')
 
     for idx, (title, df, bcols, wl, target, color) in enumerate(panels):
-        row, col = divmod(idx, 3)
-        ax = fig.add_subplot(gs_top[row, col])
+        row, col = divmod(idx, n_cols)
+        offset = 0 if row == 0 else 1
+        c0 = 2 * col + offset
+        ax = fig.add_subplot(gs_top[row, c0:c0 + 2])
 
         subset = df[df['target_name'] == target]
         imp_vals = subset[bcols].values.astype(float)
@@ -153,7 +161,10 @@ def main():
             for rlo, rhi in final:
                 ax.axvspan(rlo, rhi, color=color, alpha=0.30, zorder=0)
                 # Label the region at top of panel
-                center = (rlo + rhi) / 2
+                # Keep the label clear of the axes frame when a region
+                # touches the 400 / 2400 nm edge
+                label_margin = 45  # nm
+                center = np.clip((rlo + rhi) / 2, 400 + label_margin, 2400 - label_margin)
                 ylim = ax.get_ylim()
                 ax.text(center, ylim[1] * 0.98,
                         f'{int(rlo)}–{int(rhi)} nm',
@@ -164,10 +175,9 @@ def main():
         ax.tick_params(labelsize=9)
         sub_label = f'(a.{idx + 1})'
         pct = band_pcts[idx]
-        ax.set_title(f'{sub_label} {title} ({pct:.0%})', fontsize=9, fontweight='bold', loc='left')
+        ax.set_title(f'{sub_label} {title} ({pct:.0%})', fontsize=8, fontweight='bold', loc='left')
 
-        if row == 1:
-            ax.set_xlabel('Wavelength (nm)', fontsize=10, fontweight='bold')
+        ax.set_xlabel('Wavelength (nm)', fontsize=10, fontweight='bold')
         if col == 0:
             ax.set_ylabel('Feature\nImportance', fontsize=10, fontweight='bold')
 
@@ -176,21 +186,25 @@ def main():
     # =================================================================
     ax2 = fig.add_subplot(gs_bot[0, 0])
     
-    # idx_list = ["NDWI", "PRI", "MCARI", "NDNI", "NDVI", "soil_moisture", "brightness_index"]
-    # idx_labels = ["NDWI", "PRI", "MCARI", "NDNI", "NDVI", "Moisture index", "Brightness index"]
-    # idx_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#7f7f7f"]
-
-    idx_list = ["NDWI", "PRI", "MCARI", "NDNI", "NDVI", "soil_moisture", "brightness_index", "CI", "SCAI", "BSCI"]
-    idx_labels = ["NDWI", "PRI", "MCARI", "NDNI", "NDVI", "Moisture index", "Brightness index", "CI", "SCAI", "BSCI"]
-    idx_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#0bea4e", "#554358", "#ff0ebf", "#7f7f7f"]
+    # Stacking order, legend label and colour per index; only indices present in the results are drawn
+    index_style = {"NDWI": ("NDWI", "#1f77b4"), "PRI": ("PRI", "#ff7f0e"), "MCARI": ("MCARI", "#2ca02c"),
+                   "NDNI": ("NDNI", "#d62728"), "NDVI": ("NDVI", "#9467bd"),
+                   "soil_moisture": ("Moisture index", "#8c564b"),
+                   "brightness_index": ("Brightness index", "#0bea4e"), "CI": ("CI", "#554358"),
+                   "SCAI": ("SCAI", "#ff0ebf"), "BSCI": ("BSCI", "#7f7f7f")}
+    assert index_cols <= set(index_style), f"no style for {index_cols - set(index_style)}"
+    idx_list = [k for k in index_style if k in index_cols]
+    idx_labels = [index_style[k][0] for k in idx_list]
+    idx_colors = [index_style[k][1] for k in idx_list]
 
     targets = [
-        ('Late Succ.', df3, 'frac_late_successional'),
-        ('Early Succ.', df3, 'frac_early_successional'),
-        ('DkCy', df5, 'frac_DkCy'),
-        ('Lichen', df5, 'frac_Lichen'),
-        ('Moss', df5, 'frac_Moss'),
-        ('Senescent Vegetation', df3, 'frac_Vegetation'),
+        ('Late Succ.', df4, 'frac_late_successional'),
+        ('Early Succ.', df4, 'frac_early_successional'),
+        ('DkCy', df6, 'frac_DkCy'),
+        ('Lichen', df6, 'frac_Lichen'),
+        ('Moss', df6, 'frac_Moss'),
+        ('Senescent Vegetation', df4, 'frac_Vegetation'),
+        ('Bare Substrate', df4, 'frac_Bare'),
     ]
 
     x = np.arange(len(targets))
@@ -246,10 +260,10 @@ def main():
     ax2.set_ylabel('Feature Importance\n(fraction of total)', fontsize=10, fontweight='bold')
     ax2.set_ylim(0, 1.12)
     ax2.legend(loc='upper right', fontsize=10, frameon=True, framealpha=0.4,
-               edgecolor='none', ncol=11, columnspacing=0.4, handletextpad=0.1,
+               edgecolor='none', ncol=len(idx_list) + 1, columnspacing=0.4, handletextpad=0.1,
                bbox_to_anchor=(1.0, 1.03))
     
-    fig.text(-0.07, 0.42, '(b) The contribution of hyperspectral indices',
+    fig.text(-0.06, 0.42, '(b) The contribution of hyperspectral indices',
              fontsize=12, fontweight='bold', va='top', ha='left')
 
     # --- Save combined figure ---

@@ -9,36 +9,46 @@ from scipy import stats
 
 
 def rsquared(x, y):
-    slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-    return r_value**2, p_value
+    """Coefficient of determination R² = 1 - SSE/SST, with x = predicted
+    and y = observed (not the squared Pearson r). The p-value is from the
+    observed-vs-predicted linear regression."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    sse = np.sum((y - x) ** 2)
+    sst = np.sum((y - y.mean()) ** 2)
+    r2 = 1.0 - sse / sst
+    _, _, _, p_value, _ = stats.linregress(x, y)
+    return r2, p_value
 
 
 def main():
     root = Path(__file__).resolve().parent
-    base = root.parent.parent
-    rf_dir = base / "4_Castle_valley_analysis_RF" / "2_results"
-    cnn_dir = base / "4_Castle_valley_analysis_synthetic_approach" / "3_results"
+    base = root.parent.parent / "re_do_analysis"
+    rf_dir = base / "RF" / "2_results"
+    cnn_dir = base / "synthetic" / "3_results"
     out_dir = root / "0_exported_figures"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # --- Load all CSVs ---
-    # Row 1: RF (5-class) — reflectance only vs reflectance+indices
-    df_rf_refl = pd.read_csv(rf_dir / "rf_5class_rf_refl_predictions.csv")
-    df_rf_idx = pd.read_csv(rf_dir / "rf_5class_rf_refl_indices_predictions.csv")
+    # --- Load all CSVs (v2 re-do: 6-class scheme with bare substrate) ---
+    # Row 1: RF (6-class) — reflectance only vs reflectance+indices
+    df_rf_refl = pd.read_csv(rf_dir / "rf_6class_rf_refl_predictions.csv")
+    df_rf_idx = pd.read_csv(rf_dir / "rf_6class_rf_refl_indices_predictions.csv")
 
-    # Row 2: PCA+RF (5-class) — reflectance only vs reflectance+indices
-    df_pca_refl = pd.read_csv(rf_dir / "rf_5class_pca_rf_refl_predictions.csv")
-    df_pca_idx = pd.read_csv(rf_dir / "rf_5class_pca_rf_refl_indices_predictions.csv")
+    # Row 2: PCA+RF (6-class) — reflectance only vs reflectance+indices
+    df_pca_refl = pd.read_csv(rf_dir / "rf_6class_pca_rf_refl_predictions.csv")
+    df_pca_idx = pd.read_csv(rf_dir / "rf_6class_pca_rf_refl_indices_predictions.csv")
 
     # Rows 3 & 4: 1D-CNN — use bilinear (higher accuracy than linear)
-    df_pretrained = pd.read_csv(cnn_dir / "pretrained_model_estimation_bilinear_5scheme.csv")
-    df_finetuned = pd.read_csv(cnn_dir / "final_model_estimation_bilinear_5scheme.csv")
+    df_pretrained = pd.read_csv(cnn_dir / "pretrained_model_estimation_bilinear_6scheme.csv")
+    df_finetuned = pd.read_csv(cnn_dir / "final_model_estimation_bilinear_6scheme.csv")
 
-    # --- 5 targets (columns) ---
+    # --- 6 targets (columns) ---
     target_cols = ['frac_LtCy', 'frac_DkCy', 'frac_Lichen',
-                   'frac_Moss', 'frac_Vegetation']
+                   'frac_Moss', 'frac_Vegetation', 'frac_Bare']
     pred_cols = [f"pred_{x}" for x in target_cols]
-    col_names = ['LtCy', 'DkCy', 'Lichen', 'Moss', 'Senescent Vegetation']
+    col_names = ['LtCy', 'DkCy', 'Lichen', 'Moss',
+                 'Senescent Vegetation', 'Bare Substrate']
+    n_cols = len(target_cols)
 
     # 4 model rows
     row_titles = ['RF', 'PCA + RF', 'Pretrained 1D-CNN', 'Fine-tuned 1D-CNN']
@@ -47,13 +57,13 @@ def main():
     color_refl = 'dodgerblue'
     color_idx = 'orangered'
 
-    # --- Figure: 4 rows x 5 cols ---
-    fig = plt.figure(figsize=(10, 7), dpi=300)
-    gs = GridSpec(4, 5, left=0, right=1, top=1, bottom=0,
+    # --- Figure: 4 rows x 6 cols ---
+    fig = plt.figure(figsize=(12, 7), dpi=300)
+    gs = GridSpec(4, n_cols, left=0, right=1, top=1, bottom=0,
                   wspace=0.2, hspace=0.2)
 
     for row_i in range(4):
-        for col_i in range(5):
+        for col_i in range(n_cols):
             tcol = target_cols[col_i]
             pcol = pred_cols[col_i]
 

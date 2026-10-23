@@ -1,15 +1,20 @@
 """
-Per-class RF regression and feature importance for biocrust fractional cover estimation.
+Per-class RF regression and feature importance for biocrust fractional cover estimation
+(v2: with bare substrate).
 
 Runs 4 configurations sequentially:
-  - 2 grouping schemes: 3-class (successional) and 5-class (individual BFTs)
+  - 2 grouping schemes: 4-class (successional + bare) and 6-class (individual BFTs; only the
+                        targets not already covered by 4-class)
   - 2 predictor sets:   reflectance only and reflectance + 10 spectral indices
 
-For each configuration, a separate RF model is trained per target class
-(rather than multi-output) so that per-class RF feature importance can be extracted.
+For each configuration, a separate RF model is trained per target class (rather than
+multi-output) so that per-class RF feature importance can be extracted. Same nested-CV
+protocol as 2_RF_analysis.py (outer 123 / inner 42 / 60 draws).
 
 Outputs (per configuration): predictions CSV and feature-importance CSV in ../2_results/.
+Usage: python 3_RF_seperate_feature_importance.py [--n-iter 60] [--out-dir ../2_results]
 """
+import argparse
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -19,31 +24,29 @@ from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.preprocessing import StandardScaler
 
 
+# Parallelism: N_WORKERS single-threaded forests in parallel (see 2_RF_analysis.py); no effect on results.
+N_WORKERS = 20
+
 # ---- Column definitions ----
-ORIG_TARGET_COLS = ["frac_Vegetation", "frac_DkCy", "frac_Lichen", "frac_LtCy", "frac_Moss"]
-INDEX_COLS = ["brightness_index", "NDVI", "PRI", "NDNI", "NDWI", "MCARI",
-              "soil_moisture", "CI", "SCAI", "BSCI"]
+ORIG_TARGET_COLS = ["frac_Vegetation", "frac_DkCy", "frac_Lichen", "frac_LtCy", "frac_Moss", "frac_Bare"]
+INDEX_COLS = ["brightness_index", "NDVI", "PRI", "NDNI", "NDWI", "MCARI", "CI", "SCAI", "BSCI"]   # 9 indices
+SCHEME_TARGETS = {
+    "4class": ["frac_Vegetation", "frac_late_successional", "frac_early_successional", "frac_Bare"],
+    "6class": ["frac_DkCy", "frac_Lichen", "frac_Moss"],   # Veg, LtCy, Bare already covered by 4class
+}
 
 
 def load_data(csv_path, scheme, predictor_set):
     """
-    scheme:        '3class' (Veg, late_successional, early_successional)
-                   '5class' (DkCy, Lichen, Moss only — Veg/LtCy already covered by 3class)
+    scheme:        '4class' (Veg, late_successional, early_successional, Bare)
+                   '6class' (DkCy, Lichen, Moss only — Veg/LtCy/Bare already covered by 4class)
     predictor_set: 'refl'         — reflectance bands only
                    'refl_indices' — reflectance bands + spectral indices
     """
     df = pd.read_csv(csv_path)
-
-    # Build target columns based on scheme
-    if scheme == "3class":
-        df["frac_late_successional"] = df["frac_DkCy"] + df["frac_Lichen"] + df["frac_Moss"]
-        df["frac_early_successional"] = df["frac_LtCy"]
-        target_cols = ["frac_Vegetation", "frac_late_successional", "frac_early_successional"]
-    elif scheme == "5class":
-        # Skip Veg and LtCy — those are already in 3class scheme
-        target_cols = ["frac_DkCy", "frac_Lichen", "frac_Moss"]
-    else:
-        raise ValueError(f"Unknown scheme: {scheme}")
+    df["frac_late_successional"] = df["frac_DkCy"] + df["frac_Lichen"] + df["frac_Moss"]
+    df["frac_early_successional"] = df["frac_LtCy"]
+    target_cols = SCHEME_TARGETS[scheme]
 
     # Remove bad bands by wavelength name
     bad_bands = [[1320, 1440], [1770, 1960]]
@@ -62,6 +65,7 @@ def load_data(csv_path, scheme, predictor_set):
 
     feature_cols = [c for c in df.columns
                     if c not in excluded and c not in exclude_wvl]
+    assert not any(c.startswith("frac_") for c in feature_cols), "a target leaked into the features"
 
     y = df[target_cols].values
     X = df[feature_cols].values
@@ -120,7 +124,7 @@ def run_config(csv_path, out_dir, scheme, predictor_set, n_iter=60):
             y_train, y_test = y_target[train_idx], y_target[test_idx]
             plot_test = plots[test_idx]
 
-            base_rf = RandomForestRegressor(random_state=42, n_jobs=-1)
+            base_rf = RandomForestRegressor(random_state=42, n_jobs=1)
             rf_search = RandomizedSearchCV(
                 estimator=base_rf,
                 param_distributions=param_dist,
@@ -129,7 +133,7 @@ def run_config(csv_path, out_dir, scheme, predictor_set, n_iter=60):
                 cv=inner_cv,
                 verbose=0,
                 random_state=42,
-                n_jobs=-1)
+                n_jobs=N_WORKERS)
 
             rf_search.fit(X_train, y_train)
             best_rf = rf_search.best_estimator_
@@ -179,15 +183,20 @@ def run_config(csv_path, out_dir, scheme, predictor_set, n_iter=60):
 # ******************************************************************#
 if __name__ == "__main__":
     script_dir = Path(__file__).resolve().parent
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--n-iter", type=int, default=60)
+    ap.add_argument("--predictor-sets", nargs="+", default=["refl", "refl_indices"], choices=["refl", "refl_indices"])
+    ap.add_argument("--out-dir", default=str(script_dir.parent / "2_results"))
+    args = ap.parse_args()
     csv_path = str(script_dir.parent / "1_data" / "Processed_data" / "measured_mixtures_with_indices.csv")
-    out_dir = script_dir.parent / "2_results"
+    out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    schemes = ["3class", "5class"]
-    predictor_sets = ["refl", "refl_indices"]
+    schemes = ["4class", "6class"]
+    predictor_sets = args.predictor_sets
 
     for scheme in schemes:
         for pset in predictor_sets:
-            run_config(csv_path, out_dir, scheme, pset)
+            run_config(csv_path, out_dir, scheme, pset, n_iter=args.n_iter)
 
     print("\nAll configurations finished.")

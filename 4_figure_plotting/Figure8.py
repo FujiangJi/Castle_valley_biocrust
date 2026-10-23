@@ -14,18 +14,18 @@ import matplotlib.gridspec as gridspec
 
 def main():
     root = Path(__file__).resolve().parent
-    cnn_dir = root.parent.parent / "4_Castle_valley_analysis_synthetic_approach" / "3_results"
+    cnn_dir = root.parent.parent / "re_do_analysis" / "synthetic" / "3_results"
     out_dir = root / "0_exported_figures"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     treats = ["Control", "AltP", "Warmed", "AltP+Warmed"]
     treat_labels = ["Control", "AltP", "Warmed", "AltP+Warmed"]
 
-    # --- Load successional data (3-class, fine-tuned 1D-CNN bilinear) ---
+    # --- Load successional data (v2 4-class scheme, fine-tuned 1D-CNN bilinear) ---
     target_cols_3 = ["frac_Vegetation", "frac_late_successional", "frac_early_successional"]
     pred_cols_3 = [f"pred_{c}" for c in target_cols_3]
 
-    df_v7 = pd.read_csv(cnn_dir / "final_model_estimation_bilinear_3scheme.csv")
+    df_v7 = pd.read_csv(cnn_dir / "final_model_estimation_bilinear_4scheme.csv")
     df_v7["plot"] = df_v7["full"].apply(lambda x: x.split("_")[0])
     df_v7["treat"] = df_v7["full"].apply(lambda x: x.split("_")[1])
     df_v7.loc[df_v7["treat"] == "CC", "Treatment"] = "Control"
@@ -33,11 +33,11 @@ def main():
     df_v7.loc[df_v7["treat"] == "LW", "Treatment"] = "AltP+Warmed"
     df_v7.loc[df_v7["treat"] == "CW", "Treatment"] = "AltP"
 
-    # --- Load BFT data (5-class, fine-tuned 1D-CNN bilinear) ---
+    # --- Load BFT data (v2 6-class scheme, fine-tuned 1D-CNN bilinear) ---
     target_cols_5 = ["frac_DkCy", "frac_Lichen", "frac_LtCy", "frac_Moss"]
     pred_cols_5 = [f"pred_{c}" for c in target_cols_5]
 
-    df_v6 = pd.read_csv(cnn_dir / "final_model_estimation_bilinear_5scheme.csv")
+    df_v6 = pd.read_csv(cnn_dir / "final_model_estimation_bilinear_6scheme.csv")
     df_v6["plot"] = df_v6["full"].apply(lambda x: x.split("_")[0])
     df_v6["treat"] = df_v6["full"].apply(lambda x: x.split("_")[1])
     df_v6.loc[df_v6["treat"] == "CC", "Treatment"] = "Control"

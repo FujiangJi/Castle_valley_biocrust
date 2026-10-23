@@ -38,17 +38,18 @@ def main():
     df_lib.loc[df_lib['component'] == 'MSS', 'component'] = 'Moss'
     df_lib.loc[df_lib['component'] == 'ROCK', 'component'] = 'Rock'
     df_lib.loc[df_lib['component'] == 'SOIL', 'component'] = 'Soil'
-    df_lib = df_lib[(df_lib['component'] != 'Soil') & (df_lib['component'] != 'Rock')]
 
     comp_display = {
         'Vegetation': 'Vegetation', 'DkCy': 'Dark Cyanobacteria',
         'Lichen': 'Lichen', 'LtCy': 'Light Cyanobacteria',
         'Litter': 'Litter', 'Moss': 'Moss',
+        'Rock': 'Rock', 'Soil': 'Bare Soil',
     }
     comp_colors = {
         'Vegetation': '#33a02c', 'DkCy': '#1b7837',
         'Lichen': '#d95f02', 'LtCy': '#7fbf7b',
         'Litter': '#a6761d', 'Moss': '#1f78b4',
+        'Rock': '#636363', 'Soil': '#e7298a',
     }
 
     # --- Process measured mixtures ---
@@ -130,8 +131,8 @@ def main():
              fontsize=12, fontweight='bold', va='top')
 
     a_groups = [
-        {'idx': 0, 'comps': ['Vegetation', 'Litter'],
-         'title': '(a.1) Vegetation & Litter'},
+        {'idx': 0, 'comps': ['Vegetation', 'Litter', 'Rock', 'Soil'],
+         'title': '(a.1) Vegetation, Litter, Rock & Soil'},
         {'idx': 1, 'comps': ['DkCy', 'Lichen', 'Moss'],
          'title': '(a.2) Late Succ. (DkCy, Lichen, Moss)'},
         {'idx': 2, 'comps': ['LtCy'],
@@ -158,14 +159,15 @@ def main():
                             color=color, alpha=0.15, label='\u00b11 Std')
 
         ax.set_xlim(350, 2500)
-        ax.set_ylim(0, 0.65)
+        ax.set_ylim(0, 0.7 if group['idx'] == 0 else 0.65)
         ax.tick_params(labelsize=9)
         ax.set_title(group['title'], fontsize=10, fontweight='bold', loc='left')
         ax.set_xlabel('Wavelength (nm)', fontsize=10, fontweight='bold')
         if group['idx'] == 0:
             ax.set_ylabel('Reflectance', fontsize=10, fontweight='bold')
         if group['idx'] == 0:
-            ax.legend(fontsize=7, loc='upper right', frameon=False, ncol=2)
+            ax.legend(fontsize=6, loc='upper left', frameon=False, ncol=4,
+                      columnspacing=1.0, handlelength=1.5)
         elif group['idx'] == 1:
             ax.legend(fontsize=7, loc='lower right', frameon=False, ncol=3)
         else:
